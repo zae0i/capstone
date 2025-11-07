@@ -1,0 +1,55 @@
+# Application Settings
+app:
+  env: ${APP_ENV:dev}
+  port: ${APP_PORT:8080}
+  cors:
+    origins: ${CORS_ORIGINS:http://localhost:5173,http://127.0.0.1:5173}
+
+# Spring Boot Settings
+spring:
+  application:
+    name: greenpoint
+  # Database Settings
+  datasource:
+    url: ${DB_URL:jdbc:mysql://127.0.0.1:3306/greenpoint?useSSL=false&characterEncoding=UTF-8&serverTimezone=Asia/Seoul}
+    username: ${DB_USER:root}
+    password: ${DB_PASS:1105}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  # JPA/Hibernate Settings
+  jpa:
+    hibernate:
+      ddl-auto: update # In development, 'update' is fine. For production, 'validate' or 'none' is better.
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        default_batch_fetch_size: 100
+        dialect: org.hibernate.dialect.MySQLDialect
+  # Security
+  security:
+    jwt:
+      secret: ${JWT_SECRET:ZGVmYXVsdF9zdXBlcl9zZWNyZXRfa2V5X3RoYXRfaXNfbG9uZ19lbm91Z2hfZm9yX2hzNTEyCg==}
+      expiration-minutes: ${JWT_EXP_MINUTES:120}
+
+# API Documentation
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
+# Other External Services
+map:
+  provider: ${MAP_PROVIDER:MOCK}
+  api-key: ${MAP_API_KEY:none}
+
+payment:
+  provider: ${PAYMENT_PROVIDER:MOCK}
+
+region:
+  default: ${REGION_DEFAULT:Seoul}
+
+logging:
+  level:
+    org.hibernate.SQL: debug
+    org.hibernate.type.descriptor.sql.BasicBinder: trace
