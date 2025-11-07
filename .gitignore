@@ -1,0 +1,84 @@
+HELP.md
+.gradle
+build/
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+### STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+bin/
+!**/src/main/**/bin/
+!**/src/test/**/bin/
+
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+out/
+!**/src/main/**/out/
+!**/src/test/**/out/
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+
+### VS Code ###
+.vscode/
+
+### OS / Editor junk ###
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+### Java / JVM ###
+*.class
+*.log
+hs_err_pid*
+replay_pid*
+
+### Spring Boot / App secrets ###
+.env
+.env.*
+**/application-*.yml
+**/application-*.yaml
+**/application-*.properties
+
+### Certificates / Keys ###
+*.jks
+*.p12
+*.pem
+*.crt
+*.key
+*.keystore
+
+### Databases & runtime data ###
+*.h2.db
+*.mv.db
+*.sqlite
+*.db
+logs/
+tmp/
+cache/
+uploads/
+storage/
+
+### Test & coverage outputs ###
+test-results/
+jacoco.exec
+build/reports/
+coverage/
+
+### Node (if FE bundle
