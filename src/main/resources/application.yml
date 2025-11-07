@@ -31,12 +31,7 @@ spring:
       secret: ${JWT_SECRET:ZGVmYXVsdF9zdXBlcl9zZWNyZXRfa2V5X3RoYXRfaXNfbG9uZ19lbm91Z2hfZm9yX2hzNTEyCg==}
       expiration-minutes: ${JWT_EXP_MINUTES:120}
 
-# API Documentation
-springdoc:
-  api-docs:
-    path: /api-docs
-  swagger-ui:
-    path: /swagger-ui.html
+
 
 # Other External Services
 map:

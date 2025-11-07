@@ -14,9 +14,9 @@ public class SpringDocConfig {
     @Bean
     public OpenAPI openAPI() {
         Info info = new Info()
-                .title("GreenPoint API")
+                .title("GreenPoint API 명세서")
                 .version("v1.0.0")
-                .description("API documentation for the GreenPoint backend service.");
+                .description("GreenPoint 백엔드 서비스 API 명세서입니다.");
 
         String securitySchemeName = "bearerAuth";
         SecurityRequirement securityRequirement = new SecurityRequirement().addList(securitySchemeName);
