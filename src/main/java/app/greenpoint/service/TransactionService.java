@@ -5,11 +5,16 @@ import app.greenpoint.dto.MatchedMerchantDto;
 import app.greenpoint.dto.TransactionRequestDto;
 import app.greenpoint.dto.TransactionResponseDto;
 import app.greenpoint.repository.*;
+import app.greenpoint.dto.kakaopay.KakaoPayApproveRequestDto;
+import app.greenpoint.dto.kakaopay.KakaoPayApproveResponseDto;
+import app.greenpoint.dto.kakaopay.KakaoPayReadyRequestDto;
+import app.greenpoint.dto.kakaopay.KakaoPayReadyResponseDto;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.Optional;
 
 @Service
@@ -21,6 +26,7 @@ public class TransactionService {
     private final TransactionRepository transactionRepository;
     private final RewardPointRepository rewardPointRepository;
     private final CategoryRepository categoryRepository; // Assuming Category has code and esg_weight
+    private final KakaoPayService kakaoPayService;
 
     private static final int POINT_MULTIPLIER = 10;
 
@@ -33,12 +39,15 @@ public class TransactionService {
         // 2. Match Merchant
         Merchant merchant = matchMerchant(requestDto);
 
+        // Set txTime to now if it's null
+        LocalDateTime txTime = (requestDto.getTxTime() != null) ? requestDto.getTxTime() : LocalDateTime.now();
+
         // 3. Create and Save Initial Transaction
         Transaction transaction = Transaction.builder()
                 .user(user)
                 .merchant(merchant)
                 .amount(requestDto.getAmount())
-                .txTime(requestDto.getTxTime())
+                .txTime(txTime)
                 .lat(requestDto.getGeo() != null ? requestDto.getGeo().getLat() : null)
                 .lng(requestDto.getGeo() != null ? requestDto.getGeo().getLng() : null)
                 .source(requestDto.getSource())
@@ -60,7 +69,7 @@ public class TransactionService {
                 .build();
         rewardPointRepository.save(rewardPoint);
 
-        // 6. Update User's Points and Level
+        // 6. Update User\'s Points and Level
         user.setPoints(user.getPoints() + pointsEarned);
         user.setLevel((int) Math.floor((double) user.getPoints() / 1000) + 1);
         appUserRepository.save(user);
@@ -71,7 +80,7 @@ public class TransactionService {
 
         // 8. Prepare and Return Response
         MatchedMerchantDto matchedMerchantDto = (merchant != null)
-                ? new MatchedMerchantDto(merchant.getId(), merchant.getName())
+                ? new MatchedMerchantDto(merchant.getId(), merchant.getName(), merchant.getLat(), merchant.getLng())
                 : null;
 
         return new TransactionResponseDto(
@@ -81,6 +90,114 @@ public class TransactionService {
                 pointsEarned,
                 user.getPoints(),
                 (merchant != null) ? merchant.getEsgTier() : null
+        );
+    }
+
+    @Transactional
+    public KakaoPayReadyResponseDto initiateKakaoPayPayment(String userEmail, TransactionRequestDto requestDto) {
+        AppUser user = appUserRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found with email: " + userEmail));
+
+        Merchant merchant = matchMerchant(requestDto);
+
+        // Set txTime to now if it's null
+        LocalDateTime txTime = (requestDto.getTxTime() != null) ? requestDto.getTxTime() : LocalDateTime.now();
+
+        // Create a pending transaction for KakaoPay
+        Transaction transaction = Transaction.builder()
+                .user(user)
+                .merchant(merchant)
+                .amount(requestDto.getAmount())
+                .txTime(txTime)
+                .lat(requestDto.getGeo() != null ? requestDto.getGeo().getLat() : null)
+                .lng(requestDto.getGeo() != null ? requestDto.getGeo().getLng() : null)
+                .source(Transaction.Source.KAKAOPAY)
+                .status(Transaction.Status.PENDING)
+                .build();
+        transaction = transactionRepository.save(transaction);
+
+        // Prepare KakaoPay ready request
+        KakaoPayReadyRequestDto kakaoPayReadyRequest = new KakaoPayReadyRequestDto();
+        kakaoPayReadyRequest.setPartner_order_id(String.valueOf(transaction.getId())); // Use transaction ID as order ID
+        kakaoPayReadyRequest.setPartner_user_id(String.valueOf(user.getId()));
+        kakaoPayReadyRequest.setItem_name(requestDto.getItemName() != null ? requestDto.getItemName() : "GreenPoint Payment");
+        kakaoPayReadyRequest.setQuantity(requestDto.getQuantity() != null ? requestDto.getQuantity() : 1);
+        kakaoPayReadyRequest.setTotal_amount(requestDto.getAmount());
+        kakaoPayReadyRequest.setTax_free_amount(0); // Assuming 0 for now, can be extended
+        kakaoPayReadyRequest.setVat_amount(requestDto.getAmount() / 11); // Assuming 10% VAT
+
+        // Set dynamic approval URL to include the transaction ID
+        String approvalUrl = kakaoPayService.getRedirectHost() + kakaoPayService.getApprovalPath() + "/" + transaction.getId();
+        kakaoPayReadyRequest.setApproval_url(approvalUrl);
+
+        KakaoPayReadyResponseDto kakaoPayReadyResponse = kakaoPayService.readyPayment(kakaoPayReadyRequest);
+
+        // Update transaction with KakaoPay tid
+        transaction.setTid(kakaoPayReadyResponse.getTid());
+        transactionRepository.save(transaction);
+
+        return kakaoPayReadyResponse;
+    }
+
+    @Transactional
+    public TransactionResponseDto approveKakaoPayPayment(String pgToken, Long orderId) {
+        // Find the pending transaction by its ID (which was used as partner_order_id)
+        Transaction transaction = transactionRepository.findById(orderId)
+                .orElseThrow(() -> new IllegalArgumentException("Transaction not found with ID: " + orderId));
+
+        // Security and state check
+        if (!transaction.getStatus().equals(Transaction.Status.PENDING)) {
+            throw new IllegalStateException("Transaction is not in a pending state for approval.");
+        }
+        if (transaction.getTid() == null) {
+            throw new IllegalStateException("Transaction does not have a KakaoPay TID.");
+        }
+
+        // Prepare KakaoPay approve request
+        KakaoPayApproveRequestDto kakaoPayApproveRequest = new KakaoPayApproveRequestDto();
+        kakaoPayApproveRequest.setTid(transaction.getTid());
+        kakaoPayApproveRequest.setPartner_order_id(String.valueOf(transaction.getId()));
+        kakaoPayApproveRequest.setPartner_user_id(String.valueOf(transaction.getUser().getId()));
+        kakaoPayApproveRequest.setPg_token(pgToken);
+
+        KakaoPayApproveResponseDto kakaoPayApproveResponse = kakaoPayService.approvePayment(kakaoPayApproveRequest);
+
+        // Update transaction status and KakaoPay details
+        transaction.setStatus(Transaction.Status.CONFIRMED);
+        transaction.setAid(kakaoPayApproveResponse.getAid());
+        transaction.setPaymentMethodType(kakaoPayApproveResponse.getPayment_method_type());
+        transactionRepository.save(transaction);
+
+        // Calculate ESG Score and Reward Points
+        AppUser user = transaction.getUser();
+        int esgScore = calculateEsgScore(transaction);
+        int pointsEarned = esgScore * POINT_MULTIPLIER;
+
+        RewardPoint rewardPoint = RewardPoint.builder()
+                .user(user)
+                .transaction(transaction)
+                .points(pointsEarned)
+                .esgScore(esgScore)
+                .reason("KakaoPay Transaction reward")
+                .build();
+        rewardPointRepository.save(rewardPoint);
+
+        user.setPoints(user.getPoints() + pointsEarned);
+        user.setLevel((int) Math.floor((double) user.getPoints() / 1000) + 1);
+        appUserRepository.save(user);
+
+        // Prepare and Return Response
+        MatchedMerchantDto matchedMerchantDto = (transaction.getMerchant() != null)
+                ? new MatchedMerchantDto(transaction.getMerchant().getId(), transaction.getMerchant().getName(), transaction.getMerchant().getLat(), transaction.getMerchant().getLng())
+                : null;
+
+        return new TransactionResponseDto(
+                transaction.getId(),
+                matchedMerchantDto,
+                esgScore,
+                pointsEarned,
+                user.getPoints(),
+                (transaction.getMerchant() != null) ? transaction.getMerchant().getEsgTier() : null
         );
     }
 
@@ -107,7 +224,7 @@ public class TransactionService {
         double baseScore = Math.floor(10 * Math.log10(transaction.getAmount() + 10));
 
         // Category weight
-        // In a real app, you'd cache categories.
+        // In a real app, you\'d cache categories.
         Optional<Category> categoryOpt = categoryRepository.findById(merchant.getCategoryCode());
         double weight = categoryOpt.map(Category::getEsgWeight).orElse(1.0);
 

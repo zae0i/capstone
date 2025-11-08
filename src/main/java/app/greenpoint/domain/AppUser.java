@@ -37,9 +37,11 @@ public class AppUser {
     private Role role;
 
     @Column(nullable = false)
+    @Builder.Default
     private int level = 1;
 
     @Column(nullable = false)
+    @Builder.Default
     private int points = 0;
 
     @CreationTimestamp

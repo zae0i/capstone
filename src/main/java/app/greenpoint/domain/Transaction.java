@@ -40,15 +40,24 @@ public class Transaction {
     private BigDecimal lng;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(nullable = false, length = 10)
     private Source source;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Status status;
 
+    @Column(name = "kakaopay_tid")
+    private String tid;
+
+    @Column(name = "kakaopay_aid")
+    private String aid;
+
+    @Column(name = "payment_method_type")
+    private String paymentMethodType;
+
     public enum Source {
-        MOCK, NAVERPAY, CARD_X
+        MOCK, NAVERPAY, CARD_X, KAKAOPAY, WEB
     }
 
     public enum Status {

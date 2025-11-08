@@ -11,14 +11,14 @@ spring:
     name: greenpoint
   # Database Settings
   datasource:
-    url: ${DB_URL:jdbc:mysql://127.0.0.1:3306/greenpoint?useSSL=false&characterEncoding=UTF-8&serverTimezone=Asia/Seoul}
+    url: ${DB_URL:jdbc:mysql://127.0.0.1:3306/greenpoint?useSSL=false&characterEncoding=UTF-8&serverTimezone=Asia/Seoul&allowPublicKeyRetrieval=true}
     username: ${DB_USER:root}
     password: ${DB_PASS:1105}
     driver-class-name: com.mysql.cj.jdbc.Driver
   # JPA/Hibernate Settings
   jpa:
     hibernate:
-      ddl-auto: update # In development, 'update' is fine. For production, 'validate' or 'none' is better.
+      ddl-auto: create # Temporarily changed to create to force schema update. Change back to 'update' or 'none' after verification.
     show-sql: true
     properties:
       hibernate:
@@ -41,6 +41,18 @@ map:
 payment:
   provider: ${PAYMENT_PROVIDER:MOCK}
 
+kakaopay:
+  secret-key: DEV9C01607ADF1151706C0F66157AECD85628F4C # Provided Secret key(dev)
+  # Client ID: 0F4B76B97DF9C79E7247 (Not directly used in payment API calls)
+  # Client Secret: 46F50DB0572D7643F36A (Not directly used in payment API calls)
+  cid: ${KAKAO_PAY_CID:TC0ONETIME}
+  ready-url: https://open-api.kakaopay.com/online/v1/payment/ready
+  approve-url: https://open-api.kakaopay.com/online/v1/payment/approve
+  redirect-host: ${KAKAO_PAY_REDIRECT_HOST:http://localhost:8080} # This should be the backend host
+  approval-path: /api/v1/transactions/kakao/success
+  cancel-path: /api/v1/transactions/kakao/cancel
+  fail-path: /api/v1/transactions/kakao/fail
+
 region:
   default: ${REGION_DEFAULT:Seoul}
 
@@ -48,3 +60,5 @@ logging:
   level:
     org.hibernate.SQL: debug
     org.hibernate.type.descriptor.sql.BasicBinder: trace
+    app.greenpoint.service.KakaoPayService: debug
+    app.greenpoint.controller.TransactionController: debug
