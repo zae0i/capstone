@@ -66,11 +66,18 @@ public class RewardService {
 
     private RewardHistoryItemDto convertToDto(RewardPoint rewardPoint) {
         Transaction transaction = rewardPoint.getTransaction();
-        String merchantName = (transaction.getMerchant() != null) ? transaction.getMerchant().getName() : "N/A";
+        String merchantName = "N/A";
+        String categoryName = "N/A";
+        if (transaction.getMerchant() != null) {
+            merchantName = transaction.getMerchant().getName();
+            categoryName = transaction.getMerchant().getCategoryCode();
+        }
 
         return new RewardHistoryItemDto(
                 transaction.getId(),
                 merchantName,
+                categoryName,
+                transaction.getAmount(),
                 rewardPoint.getPoints(),
                 rewardPoint.getEsgScore(),
                 transaction.getTxTime()

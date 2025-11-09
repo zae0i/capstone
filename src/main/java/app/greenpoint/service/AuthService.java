@@ -40,7 +40,7 @@ public class AuthService {
                 .email(signupRequest.getEmail())
                 .password(passwordEncoder.encode(signupRequest.getPassword()))
                 .nickname(signupRequest.getNickname())
-                .region(signupRequest.getRegion())
+                .region(signupRequest.getRegion() != null && !signupRequest.getRegion().isBlank() ? signupRequest.getRegion() : "서울") // Default to "서울" if region is null or blank
                 .role(AppUser.Role.USER)
                 .build();
 

@@ -10,5 +10,6 @@ import lombok.Setter;
 public class RankingItemDto {
     private int rank;
     private String nickname;
+    private int level;
     private int points;
 }

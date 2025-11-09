@@ -9,4 +9,5 @@ import java.util.List;
 
 public interface TransactionRepository extends JpaRepository<Transaction, Long> {
     List<Transaction> findAllByUserAndTxTimeBetween(AppUser user, LocalDateTime start, LocalDateTime end);
+    List<Transaction> findByUserOrderByTxTimeDesc(AppUser user);
 }

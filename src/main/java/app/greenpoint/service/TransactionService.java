@@ -9,6 +9,8 @@ import app.greenpoint.dto.kakaopay.KakaoPayApproveRequestDto;
 import app.greenpoint.dto.kakaopay.KakaoPayApproveResponseDto;
 import app.greenpoint.dto.kakaopay.KakaoPayReadyRequestDto;
 import app.greenpoint.dto.kakaopay.KakaoPayReadyResponseDto;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
@@ -16,10 +18,17 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
+import app.greenpoint.dto.TransactionHistoryDto;
+import java.util.Optional;
+import java.util.List;
+import java.util.stream.Collectors;
+import org.springframework.data.domain.Sort;
 
 @Service
 @RequiredArgsConstructor
 public class TransactionService {
+
+    private static final Logger log = LoggerFactory.getLogger(TransactionService.class);
 
     private final AppUserRepository appUserRepository;
     private final MerchantRepository merchantRepository;
@@ -29,6 +38,43 @@ public class TransactionService {
     private final KakaoPayService kakaoPayService;
 
     private static final int POINT_MULTIPLIER = 10;
+
+    @Transactional(readOnly = true)
+    public List<TransactionHistoryDto> getTransactionsByUserEmail(String userEmail) {
+        AppUser user = appUserRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found with email: " + userEmail));
+
+        List<Transaction> transactions = transactionRepository.findByUserOrderByTxTimeDesc(user);
+
+        return transactions.stream().map(transaction -> {
+            String merchantName = (transaction.getMerchant() != null) ? transaction.getMerchant().getName() : "N/A";
+            String categoryName = "N/A";
+            if (transaction.getMerchant() != null && transaction.getMerchant().getCategoryCode() != null) {
+                categoryName = categoryRepository.findById(transaction.getMerchant().getCategoryCode())
+                        .map(Category::getName)
+                        .orElse("N/A");
+            }
+
+            RewardPoint rewardPoint = rewardPointRepository.findByTransaction(transaction).orElse(null);
+            int esgScore = (rewardPoint != null) ? rewardPoint.getEsgScore() : 0;
+            int pointsEarned = (rewardPoint != null) ? rewardPoint.getPoints() : 0;
+
+            log.debug("Transaction ID: {}, Merchant Name: {}, Category Name: {}, Points Earned: {}",
+                      transaction.getId(), merchantName, categoryName, pointsEarned);
+
+            return new TransactionHistoryDto(
+                    transaction.getId(),
+                    transaction.getTxTime(),
+                    transaction.getAmount(),
+                    transaction.getSource(),
+                    transaction.getStatus(),
+                    merchantName,
+                    categoryName,
+                    esgScore,
+                    pointsEarned
+            );
+        }).collect(Collectors.toList());
+    }
 
     @Transactional
     public TransactionResponseDto processTransaction(String userEmail, TransactionRequestDto requestDto) {
@@ -69,14 +115,13 @@ public class TransactionService {
                 .build();
         rewardPointRepository.save(rewardPoint);
 
-        // 6. Update User\'s Points and Level
-        user.setPoints(user.getPoints() + pointsEarned);
-        user.setLevel((int) Math.floor((double) user.getPoints() / 1000) + 1);
-        appUserRepository.save(user);
+        // 6. Update User's Points and Level
+        user.addPoints(pointsEarned);
 
         // 7. Finalize Transaction Status
         transaction.setStatus(Transaction.Status.CONFIRMED);
-        transactionRepository.save(transaction);
+        // No need to save transaction explicitly, handled by @Transactional
+
 
         // 8. Prepare and Return Response
         MatchedMerchantDto matchedMerchantDto = (merchant != null)
@@ -182,15 +227,14 @@ public class TransactionService {
                 .build();
         rewardPointRepository.save(rewardPoint);
 
-        user.setPoints(user.getPoints() + pointsEarned);
-        user.setLevel((int) Math.floor((double) user.getPoints() / 1000) + 1);
-        appUserRepository.save(user);
+        // Update user's points
+        user.addPoints(pointsEarned);
 
         // Prepare and Return Response
         MatchedMerchantDto matchedMerchantDto = (transaction.getMerchant() != null)
                 ? new MatchedMerchantDto(transaction.getMerchant().getId(), transaction.getMerchant().getName(), transaction.getMerchant().getLat(), transaction.getMerchant().getLng())
                 : null;
-
+        
         return new TransactionResponseDto(
                 transaction.getId(),
                 matchedMerchantDto,

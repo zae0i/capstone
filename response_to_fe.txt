@@ -1,0 +1,14 @@
+백엔드 설정 변경 완료:
+
+`f:\capstone_BE\src\main\resources\application.yml` 파일에서 `spring.jpa.hibernate.ddl-auto` 설정을 `create`에서 `validate`로 변경했습니다. 이 변경으로 인해 애플리케이션 시작 시 데이터베이스 스키마를 새로 생성하는 대신 기존 스키마와의 일치 여부를 검증하게 됩니다. 이는 프로덕션 환경에서 데이터 손실을 방지하는 데 중요합니다.
+
+프론트엔드 개발자에게 전달할 사항:
+
+이전에 언급했던 `TransactionHistory.tsx` 파일의 `key` prop 문제와 `TransactionSubmission.tsx` 파일의 가맹점 드롭다운 기능은 현재 백엔드 프로젝트(`f:\capstone_BE`)의 범위 밖입니다. 해당 파일들은 프론트엔드 프로젝트에 속해 있으므로, 프론트엔드 개발자가 직접 확인하고 수정해야 합니다.
+
+**프론트엔드 개발자에게 전달할 핵심 내용:**
+
+1.  **`TransactionHistory.tsx` 파일의 `key` prop 확인:** `map()` 함수를 사용하여 목록을 렌더링하는 부분(예: `<tr>` 요소)에 고유하고 안정적인 `key` prop이 추가되었는지 확인해야 합니다. (예: `<tr key={transaction.tx_id}>`)
+2.  **`TransactionSubmission.tsx` 파일의 가맹점 드롭다운 기능:** `src/api/index.ts` 파일의 `getMerchantNames` 함수는 백엔드 API(`http://localhost:8080/api/v1/merchants/names`)와 올바르게 연동되도록 구현되어 있습니다. 프론트엔드에서 이 함수를 사용하여 가맹점 이름을 가져와 드롭다운으로 표시하는 기능이 올바르게 작동하는지 확인하십시오.
+
+백엔드 설정 변경은 완료되었으며, 프론트엔드 관련 작업은 해당 프로젝트에서 진행되어야 합니다.

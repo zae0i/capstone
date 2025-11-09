@@ -6,14 +6,17 @@ import app.greenpoint.dto.RankingItemDto;
 import app.greenpoint.dto.RankingResponseDto;
 import app.greenpoint.repository.AppUserRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Comparator;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class RankingService {
@@ -21,32 +24,30 @@ public class RankingService {
     private final AppUserRepository appUserRepository;
 
     @Transactional(readOnly = true)
-    public RankingResponseDto getRanking(String region, String period, String userEmail) {
-        // 1. Fetch Top 10 Users
-        List<AppUser> topUsers = appUserRepository.findTop10ByRegionOrderByPointsDesc(region);
+    public RankingResponseDto getRanking() {
+        List<AppUser> allUsers = appUserRepository.findAll();
 
-        AtomicInteger rankCounter = new AtomicInteger(1);
-        List<RankingItemDto> topRankingItems = topUsers.stream()
-                .map(user -> new RankingItemDto(
-                        rankCounter.getAndIncrement(),
-                        user.getNickname(),
-                        user.getPoints()))
+        // Sort users by points in descending order
+        allUsers.sort(Comparator.comparingInt(AppUser::getPoints).reversed());
+
+        // Create DTOs with ranks
+        List<RankingItemDto> rankings = IntStream.range(0, allUsers.size())
+                .mapToObj(i -> {
+                    AppUser user = allUsers.get(i);
+                    return new RankingItemDto(i + 1, user.getNickname(), user.getLevel(), user.getPoints());
+                })
                 .collect(Collectors.toList());
 
-        // 2. Fetch Current User's Rank
+        return new RankingResponseDto(rankings);
+    }
+
+    @Transactional(readOnly = true)
+    public MyRankDto getMyRank(String userEmail) {
         AppUser currentUser = appUserRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new UsernameNotFoundException("User not found: " + userEmail));
+                .orElseThrow(() -> new UsernameNotFoundException("User not found with email: " + userEmail));
 
-        MyRankDto myRank = null;
-        // Only calculate "my rank" if the user belongs to the queried region
-        if (currentUser.getRegion().equals(region)) {
-            long usersWithMorePoints = appUserRepository.countByRegionAndPointsGreaterThan(region, currentUser.getPoints());
-            long myRankValue = usersWithMorePoints + 1;
-            myRank = new MyRankDto(myRankValue, currentUser.getPoints());
-        }
+        long rank = appUserRepository.countByPointsGreaterThan(currentUser.getPoints()) + 1;
 
-        // Note: The 'period' parameter is ignored in this live-query implementation.
-        // A full implementation would query a snapshot table based on the period.
-        return new RankingResponseDto(region, period, topRankingItems, myRank);
+        return new MyRankDto(rank, currentUser.getNickname(), currentUser.getLevel(), currentUser.getPoints());
     }
 }

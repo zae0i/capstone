@@ -18,7 +18,7 @@ spring:
   # JPA/Hibernate Settings
   jpa:
     hibernate:
-      ddl-auto: create # Temporarily changed to create to force schema update. Change back to 'update' or 'none' after verification.
+      ddl-auto: validate # Temporarily changed to create to force schema update. Change back to 'update' or 'none' after verification.
     show-sql: true
     properties:
       hibernate:

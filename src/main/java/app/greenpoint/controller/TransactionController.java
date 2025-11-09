@@ -14,6 +14,9 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.view.RedirectView;
 
+import app.greenpoint.dto.TransactionHistoryDto;
+import java.util.List;
+
 @Tag(name = "거래", description = "거래 및 리워드 적립 API")
 @RestController
 @RequestMapping("/api/v1/transactions")
@@ -21,6 +24,16 @@ import org.springframework.web.servlet.view.RedirectView;
 public class TransactionController {
 
     private final TransactionService transactionService;
+
+    @Operation(summary = "사용자 거래 내역 조회",
+               description = "인증된 사용자의 모든 거래 내역을 최신순으로 조회합니다. 인증이 필요합니다.",
+               security = @SecurityRequirement(name = "bearerAuth"))
+    @GetMapping
+    public ResponseEntity<List<TransactionHistoryDto>> getTransactionHistory(Authentication authentication) {
+        String userEmail = authentication.getName();
+        List<TransactionHistoryDto> transactionHistory = transactionService.getTransactionsByUserEmail(userEmail);
+        return ResponseEntity.ok(transactionHistory);
+    }
 
     @Operation(summary = "거래 내역 제출",
                description = "사용자의 거래 내역을 제출하여 ESG 점수를 계산하고 포인트를 적립합니다. 인증이 필요합니다.",

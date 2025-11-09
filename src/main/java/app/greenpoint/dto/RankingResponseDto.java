@@ -10,8 +10,5 @@ import java.util.List;
 @Setter
 @AllArgsConstructor
 public class RankingResponseDto {
-    private String region;
-    private String period;
-    private List<RankingItemDto> top;
-    private MyRankDto me;
+    private List<RankingItemDto> topRankings;
 }

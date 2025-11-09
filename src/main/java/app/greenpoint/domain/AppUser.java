@@ -55,4 +55,13 @@ public class AppUser {
     public enum Role {
         USER, ADMIN
     }
+
+    /**
+     * Adds points to the user and updates their level accordingly.
+     * @param pointsToAdd The number of points to add.
+     */
+    public void addPoints(int pointsToAdd) {
+        this.points += pointsToAdd;
+        this.level = (int) Math.floor((double) this.points / 1000) + 1;
+    }
 }

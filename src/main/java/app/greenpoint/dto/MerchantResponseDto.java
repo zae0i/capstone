@@ -7,9 +7,7 @@ import lombok.Setter;
 @Getter
 @Setter
 @AllArgsConstructor
-public class MyRankDto {
-    private long rank;
-    private String nickname;
-    private int level;
-    private int points;
+public class MerchantResponseDto {
+    private Long id;
+    private String name;
 }
